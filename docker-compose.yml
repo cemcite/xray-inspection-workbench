@@ -1,0 +1,36 @@
+services:
+  inspection-api:
+    build: .
+    command: uvicorn xray_workbench.api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      XRAY_DATABASE_URL: sqlite:////state/xray_workbench.db
+      XRAY_RISK_CONFIG: config/risk-thresholds.yaml
+    ports:
+      - "8000:8000"
+    volumes:
+      - inspection-state:/state
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  operator-ui:
+    build: .
+    command: streamlit run ui/operator_console/app.py --server.address=0.0.0.0
+    environment:
+      XRAY_API_URL: http://inspection-api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      inspection-api:
+        condition: service_healthy
+
+volumes:
+  inspection-state:

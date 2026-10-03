@@ -1,0 +1,10 @@
+# Populate these paths only after obtaining PIDray under its applicable terms.
+path: data/processed/pidray
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: gun
+  1: knife
+  2: scissors
+  3: lighter

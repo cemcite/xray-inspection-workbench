@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+*.db
+*.sqlite3
+
+# Large/local assets
+data/raw/**
+data/processed/**
+data/runtime/**
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/runtime/.gitkeep
+models/**/*.pt
+models/**/*.onnx
+runs/
+training/experiments/**
+!training/experiments/.gitkeep
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

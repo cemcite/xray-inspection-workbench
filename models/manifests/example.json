@@ -1,0 +1,16 @@
+{
+  "model": "xray-detector",
+  "version": "0.1.0",
+  "architecture": "not-trained",
+  "trainedAt": null,
+  "dataset": {
+    "name": "PIDray-subset",
+    "version": "unprepared",
+    "classes": ["gun", "knife", "scissors", "lighter"]
+  },
+  "inputSize": 640,
+  "metrics": {
+    "map50": null,
+    "map50_95": null
+  }
+}

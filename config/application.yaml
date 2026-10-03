@@ -1,0 +1,9 @@
+application:
+  name: X-Ray Inspection Workbench
+  environment: development
+model:
+  name: xray-detector
+  version: unavailable
+  minimum_confidence: 0.10
+storage:
+  database_url: sqlite:///./xray_workbench.db

@@ -1,0 +1,16 @@
+default:
+  review_threshold: 0.50
+  high_threshold: 0.80
+classes:
+  knife:
+    review_threshold: 0.40
+    high_threshold: 0.75
+  gun:
+    review_threshold: 0.30
+    high_threshold: 0.65
+  scissors:
+    review_threshold: 0.50
+    high_threshold: 0.80
+  lighter:
+    review_threshold: 0.45
+    high_threshold: 0.75
