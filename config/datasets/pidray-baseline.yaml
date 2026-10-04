@@ -1,0 +1,9 @@
+# Local academic/non-commercial PIDray subset; files are excluded from Git.
+path: data/processed/pidray-baseline
+train: images/train
+val: images/val
+names:
+  0: gun
+  1: knife
+  2: scissors
+  3: lighter

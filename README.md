@@ -95,6 +95,22 @@ python training/prepare_dataset.py `
   --output data\processed\pidray `
   --split train `
   --classes gun knife scissors lighter `
+  --balanced `
+  --max-images 100
+```
+
+When disk space is limited, images can be read directly from an archive without
+extracting the full dataset:
+
+```powershell
+python training/prepare_dataset.py `
+  --annotations C:\Datasets\PIDray\annotations\train.json `
+  --image-archive C:\Datasets\PIDray\pidray.zip `
+  --archive-prefix pidray/train `
+  --output data\processed\pidray `
+  --split train `
+  --classes gun knife scissors lighter `
+  --balanced `
   --max-images 100
 ```
 
@@ -106,8 +122,30 @@ Once a local base-weight file has been obtained deliberately, run the bounded
 smoke pipeline without any implicit download:
 
 ```powershell
-python training/train.py --model C:\path\to\base-model.pt --epochs 3
-python training/evaluate.py --model training\experiments\pidray-smoke\weights\best.pt
+python training/train.py `
+  --model models\base\yolo26n.pt `
+  --epochs 1 `
+  --image-size 320 `
+  --batch-size 4 `
+  --workers 0 `
+  --device cpu `
+  --name pidray-smoke-cpu
+python training/evaluate.py --model training\experiments\pidray-smoke-cpu\weights\best.pt
+```
+
+The first local smoke run used 100 balanced training images and 40 balanced
+validation images. It completed the full train/validation pipeline, but its
+one-epoch metrics are intentionally not suitable for operational use. See
+`models/manifests/pidray-smoke-cpu.json` for the recorded run details.
+
+A second CPU baseline used 500 training images and 160 validation images, with
+20% background examples in each split. Its 20-epoch result reached mAP50
+0.4296 and mAP50-95 0.2794. The class-level results and limitations are recorded
+in `models/manifests/pidray-baseline-cpu.json`. To try it locally, set:
+
+```powershell
+$env:XRAY_MODEL_PATH="training\experiments\pidray-baseline-cpu\weights\best.pt"
+$env:XRAY_MODEL_VERSION="baseline-20e"
 ```
 
 ## Repository map
@@ -123,9 +161,10 @@ python training/evaluate.py --model training\experiments\pidray-smoke\weights\be
 
 ## Next milestone
 
-Prepare a small, permitted PIDray subset (3-4 classes), run a 1-3 epoch smoke
-training, and prove the first real image upload -> detection -> risk ->
-persistence -> review flow. Dataset files and model weights stay outside Git.
+Expand the permitted PIDray subset with background/negative examples, train a
+meaningful baseline, and prove the first real image upload -> detection -> risk
+-> persistence -> review flow. Dataset files and model weights stay outside
+Git.
 
 ## Safety and limitations
 

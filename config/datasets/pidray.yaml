@@ -1,5 +1,5 @@
 # Populate these paths only after obtaining PIDray under its applicable terms.
-path: data/processed/pidray
+path: data/processed/pidray-smoke
 train: images/train
 val: images/val
 test: images/test

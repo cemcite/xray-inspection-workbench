@@ -129,7 +129,7 @@ class YoloDetector:
 
 
 def _load_ultralytics_model(weights_path: str) -> PredictModel:
-    from ultralytics import YOLO
+    from ultralytics import YOLO  # type: ignore[attr-defined]
 
     return cast(PredictModel, YOLO(weights_path))
 

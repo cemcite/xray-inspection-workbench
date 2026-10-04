@@ -1,10 +1,11 @@
 import json
 import shutil
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+from zipfile import ZipFile
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +34,7 @@ class ConversionSummary:
 
 def convert_coco_split(
     annotation_file: str | Path,
-    images_dir: str | Path,
+    images_dir: str | Path | None,
     output_dir: str | Path,
     *,
     split: str,
@@ -41,6 +42,10 @@ def convert_coco_split(
     include_backgrounds: bool = False,
     max_images: int | None = None,
     overwrite: bool = False,
+    image_archive: str | Path | None = None,
+    archive_prefix: str = "",
+    balanced: bool = False,
+    background_fraction: float = 0.0,
 ) -> ConversionSummary:
     """Convert one COCO detection split to YOLO labels and copied images."""
 
@@ -50,9 +55,18 @@ def convert_coco_split(
         raise ValueError("class_names must be non-empty and unique")
     if max_images is not None and max_images <= 0:
         raise ValueError("max_images must be greater than zero")
+    if not 0.0 <= background_fraction < 1.0:
+        raise ValueError("background_fraction must be in [0, 1)")
+    if background_fraction and not include_backgrounds:
+        raise ValueError("background_fraction requires include_backgrounds=True")
+    if background_fraction and max_images is None:
+        raise ValueError("background_fraction requires max_images")
+    if (images_dir is None) == (image_archive is None):
+        raise ValueError("Provide exactly one of images_dir or image_archive")
 
     annotation_path = Path(annotation_file)
-    source_images = Path(images_dir)
+    source_images = Path(images_dir) if images_dir is not None else None
+    archive_path = Path(image_archive) if image_archive is not None else None
     destination = Path(output_dir)
     raw = _read_json_object(annotation_path)
 
@@ -79,6 +93,19 @@ def convert_coco_split(
         for image in sorted(images, key=lambda item: item.file_name)
         if include_backgrounds or annotations_by_image[image.id]
     ]
+    if balanced:
+        selected_images = _balanced_order(
+            selected_images,
+            annotations_by_image,
+            category_to_class,
+        )
+    if background_fraction:
+        selected_images = _reserve_backgrounds(
+            selected_images,
+            annotations_by_image,
+            max_images=max_images,
+            background_fraction=background_fraction,
+        )
     if max_images is not None:
         selected_images = selected_images[:max_images]
 
@@ -89,28 +116,38 @@ def convert_coco_split(
 
     annotation_count = 0
     skipped_count = 0
-    for image in selected_images:
-        source = source_images / image.file_name
-        target = image_output / Path(image.file_name).name
-        if not source.is_file():
-            raise FileNotFoundError(f"COCO image is missing: {source}")
-        if target.exists() and not overwrite:
-            raise FileExistsError(f"Destination already exists: {target}")
-        shutil.copy2(source, target)
+    archive = ZipFile(archive_path) if archive_path is not None else None
+    try:
+        for image in selected_images:
+            target = image_output / Path(image.file_name).name
+            if target.exists() and not overwrite:
+                raise FileExistsError(f"Destination already exists: {target}")
+            _copy_image(
+                image,
+                target,
+                source_images=source_images,
+                archive=archive,
+                archive_prefix=archive_prefix,
+            )
 
-        lines: list[str] = []
-        for annotation in annotations_by_image[image.id]:
-            normalized = _normalize_bbox(annotation.bbox, image.width, image.height)
-            if normalized is None:
-                skipped_count += 1
-                continue
-            class_id = category_to_class[annotation.category_id]
-            lines.append(f"{class_id} " + " ".join(f"{value:.8f}" for value in normalized))
-            annotation_count += 1
-        (label_output / f"{target.stem}.txt").write_text(
-            "\n".join(lines) + ("\n" if lines else ""),
-            encoding="utf-8",
-        )
+            lines: list[str] = []
+            for annotation in annotations_by_image[image.id]:
+                normalized = _normalize_bbox(annotation.bbox, image.width, image.height)
+                if normalized is None:
+                    skipped_count += 1
+                    continue
+                class_id = category_to_class[annotation.category_id]
+                lines.append(
+                    f"{class_id} " + " ".join(f"{value:.8f}" for value in normalized)
+                )
+                annotation_count += 1
+            (label_output / f"{target.stem}.txt").write_text(
+                "\n".join(lines) + ("\n" if lines else ""),
+                encoding="utf-8",
+            )
+    finally:
+        if archive is not None:
+            archive.close()
 
     summary = ConversionSummary(
         split=split,
@@ -126,6 +163,83 @@ def convert_coco_split(
         encoding="utf-8",
     )
     return summary
+
+
+def _balanced_order(
+    images: list[CocoImage],
+    annotations_by_image: dict[int, list[CocoAnnotation]],
+    category_to_class: dict[int, int],
+) -> list[CocoImage]:
+    buckets: dict[int, deque[CocoImage]] = {
+        class_id: deque() for class_id in sorted(set(category_to_class.values()))
+    }
+    backgrounds: list[CocoImage] = []
+    for image in images:
+        class_ids = {
+            category_to_class[annotation.category_id]
+            for annotation in annotations_by_image[image.id]
+            if annotation.category_id in category_to_class
+        }
+        if not class_ids:
+            backgrounds.append(image)
+            continue
+        for class_id in sorted(class_ids):
+            buckets[class_id].append(image)
+
+    ordered: list[CocoImage] = []
+    seen: set[int] = set()
+    while any(buckets.values()):
+        for class_id in sorted(buckets):
+            bucket = buckets[class_id]
+            while bucket and bucket[0].id in seen:
+                bucket.popleft()
+            if bucket:
+                image = bucket.popleft()
+                ordered.append(image)
+                seen.add(image.id)
+    ordered.extend(image for image in backgrounds if image.id not in seen)
+    return ordered
+
+
+def _reserve_backgrounds(
+    images: list[CocoImage],
+    annotations_by_image: dict[int, list[CocoAnnotation]],
+    *,
+    max_images: int | None,
+    background_fraction: float,
+) -> list[CocoImage]:
+    if max_images is None:
+        raise ValueError("max_images is required when reserving backgrounds")
+    foregrounds = [image for image in images if annotations_by_image[image.id]]
+    backgrounds = [image for image in images if not annotations_by_image[image.id]]
+    background_count = min(round(max_images * background_fraction), len(backgrounds))
+    foreground_count = min(max_images - background_count, len(foregrounds))
+    selected = foregrounds[:foreground_count] + backgrounds[:background_count]
+    return sorted(selected, key=lambda image: image.file_name)
+
+
+def _copy_image(
+    image: CocoImage,
+    target: Path,
+    *,
+    source_images: Path | None,
+    archive: ZipFile | None,
+    archive_prefix: str,
+) -> None:
+    if source_images is not None:
+        source = source_images / image.file_name
+        if not source.is_file():
+            raise FileNotFoundError(f"COCO image is missing: {source}")
+        shutil.copy2(source, target)
+        return
+    if archive is None:
+        raise RuntimeError("No image source is configured")
+    member = str(PurePosixPath(archive_prefix) / PurePosixPath(image.file_name))
+    try:
+        payload = archive.read(member)
+    except KeyError as error:
+        raise FileNotFoundError(f"COCO image is missing from archive: {member}") from error
+    target.write_bytes(payload)
 
 
 def _read_json_object(path: Path) -> dict[str, Any]:

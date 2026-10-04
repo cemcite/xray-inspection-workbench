@@ -12,7 +12,10 @@ def parse_args() -> argparse.Namespace:
         description="Convert one local COCO split without downloading any dataset files."
     )
     parser.add_argument("--annotations", required=True)
-    parser.add_argument("--images", required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--images")
+    source.add_argument("--image-archive")
+    parser.add_argument("--archive-prefix", default="")
     parser.add_argument("--output", default="data/processed/pidray")
     parser.add_argument("--split", required=True)
     parser.add_argument(
@@ -21,7 +24,9 @@ def parse_args() -> argparse.Namespace:
         default=["gun", "knife", "scissors", "lighter"],
     )
     parser.add_argument("--include-backgrounds", action="store_true")
+    parser.add_argument("--background-fraction", type=float, default=0.0)
     parser.add_argument("--max-images", type=int)
+    parser.add_argument("--balanced", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -37,6 +42,10 @@ def main() -> None:
         include_backgrounds=args.include_backgrounds,
         max_images=args.max_images,
         overwrite=args.overwrite,
+        image_archive=args.image_archive,
+        archive_prefix=args.archive_prefix,
+        balanced=args.balanced,
+        background_fraction=args.background_fraction,
     )
     print(json.dumps(asdict(summary), indent=2))
 
