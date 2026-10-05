@@ -6,9 +6,9 @@ small `Detector` boundary rather than Ultralytics types, so model runtimes can
 be replaced without changing the product contract.
 
 > Current state: the API, domain model, configurable risk policy, SQLite
-> persistence skeleton, Streamlit shell, tests, Docker setup, COCO-to-YOLO
-> converter, Ultralytics adapter, and CI are scaffolded. No dataset or model
-> weights are bundled.
+> persistence, Streamlit operator flow, COCO-to-YOLO converter, Ultralytics
+> adapter, CI, and a CPU-trained YOLO26n baseline are implemented. Dataset files
+> and model weights are local artifacts and are not committed to this repository.
 
 ## Architecture
 
@@ -18,9 +18,11 @@ X-ray image -> preprocessing -> Detector -> domain mapping -> risk policy
 ```
 
 The model confidence cutoff and operational risk thresholds are intentionally
-separate. The future Ultralytics adapter may emit detections from a low model
-threshold (default `0.10`), while `config/risk-thresholds.yaml` decides whether
-an item is low risk, requires review, or is high risk.
+separate. The Ultralytics adapter emits detections from a low model threshold
+(default `0.10`), while `config/risk-thresholds.yaml` decides whether an item is
+low risk, requires review, or is high risk. Image enhancement algorithms remain
+an experiment; the current detector receives the decoded image without CLAHE or
+denoising.
 
 ## Local development
 
@@ -164,10 +166,11 @@ $env:XRAY_MODEL_VERSION="baseline-20e"
 
 ## Next milestone
 
-Expand the permitted PIDray subset with background/negative examples, train a
-meaningful baseline, and prove the first real image upload -> detection -> risk
--> persistence -> review flow. Dataset files and model weights stay outside
-Git.
+Improve generalization against hard and hidden PIDray examples through a
+documented error analysis. Compare raw input with CLAHE and denoise+CLAHE using
+the same evaluation splits and report per-class quality and latency before
+choosing any preprocessing default. Dataset files and model weights stay
+outside Git.
 
 ## Safety and limitations
 

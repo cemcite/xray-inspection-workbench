@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Protocol
 
 import numpy as np
@@ -7,6 +8,12 @@ import numpy.typing as npt
 from xray_workbench.domain.detection import BoundingBox
 
 ImageArray = npt.NDArray[np.uint8]
+
+
+class PreprocessingMode(StrEnum):
+    RAW = "raw"
+    CLAHE = "clahe"
+    DENOISE_CLAHE = "denoise_clahe"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +29,9 @@ class DetectionResult:
     model_name: str = "unknown"
     model_version: str = "unknown"
     inference_ms: float = 0.0
+    preprocessing_ms: float = 0.0
+    postprocessing_ms: float = 0.0
+    preprocessing_mode: PreprocessingMode = PreprocessingMode.RAW
 
 
 class Detector(Protocol):

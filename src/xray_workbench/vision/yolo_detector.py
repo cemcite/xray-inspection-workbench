@@ -8,7 +8,13 @@ from typing import Any, Protocol, cast
 import numpy as np
 
 from xray_workbench.domain.detection import BoundingBox
-from xray_workbench.vision.detector import DetectionCandidate, DetectionResult, ImageArray
+from xray_workbench.vision.detector import (
+    DetectionCandidate,
+    DetectionResult,
+    ImageArray,
+    PreprocessingMode,
+)
+from xray_workbench.vision.preprocessing import preprocess_image
 
 
 class ModelUnavailableError(RuntimeError):
@@ -37,6 +43,7 @@ class YoloDetector:
         model_version: str,
         minimum_confidence: float = 0.10,
         device: str | None = None,
+        preprocessing_mode: PreprocessingMode = PreprocessingMode.RAW,
         model_loader: ModelLoader | None = None,
     ) -> None:
         if not 0.0 <= minimum_confidence <= 1.0:
@@ -46,6 +53,7 @@ class YoloDetector:
         self._model_version = model_version
         self._minimum_confidence = minimum_confidence
         self._device = device
+        self._preprocessing_mode = preprocessing_mode
         self._model: PredictModel | None = None
         self._load_error: str | None = None
 
@@ -81,8 +89,11 @@ class YoloDetector:
         if image.size == 0:
             raise ValueError("Image cannot be empty")
 
+        preprocessing_started = perf_counter()
+        prepared_image = preprocess_image(image, self._preprocessing_mode)
+        preprocessing_ms = (perf_counter() - preprocessing_started) * 1000.0
         arguments: dict[str, object] = {
-            "source": image,
+            "source": prepared_image,
             "conf": self._minimum_confidence,
             "verbose": False,
         }
@@ -96,12 +107,16 @@ class YoloDetector:
             raise RuntimeError(f"Expected one inference result, received {len(results)}")
 
         result = results[0]
+        postprocessing_started = perf_counter()
         boxes = result.boxes
         if boxes is None:
             return DetectionResult(
                 model_name=self.model_name,
                 model_version=self.model_version,
                 inference_ms=_inference_time(result, elapsed_ms),
+                preprocessing_ms=preprocessing_ms,
+                postprocessing_ms=(perf_counter() - postprocessing_started) * 1000.0,
+                preprocessing_mode=self._preprocessing_mode,
             )
 
         xywhn = _to_numpy(boxes.xywhn)
@@ -125,6 +140,9 @@ class YoloDetector:
             model_name=self.model_name,
             model_version=self.model_version,
             inference_ms=_inference_time(result, elapsed_ms),
+            preprocessing_ms=preprocessing_ms,
+            postprocessing_ms=(perf_counter() - postprocessing_started) * 1000.0,
+            preprocessing_mode=self._preprocessing_mode,
         )
 
 

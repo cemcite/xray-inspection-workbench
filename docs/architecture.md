@@ -31,10 +31,20 @@ stores only the UUID-based storage key and media metadata. Audit events are
 append-only records ordered by occurrence time. Both use separate tables, so
 the original inspection table remains compatible with the initial scaffold.
 
-## Deferred intentionally
+## Implemented since the initial scaffold
 
-- PIDray download and redistribution decision.
-- Real training and model weights.
-- Bounding-box rendering and review calls from Streamlit.
-- Audit-event table, observability, authentication, and production database.
-- C++ preprocessing and .NET orchestration (post-v0.1 only).
+- Local PIDray subset preparation and a versioned CPU YOLO26n baseline.
+- Bounding-box rendering, review calls, inspection history, and audit events in
+  the Streamlit operator console.
+- Separate SQLite records for inspections, image references, and audit events.
+
+## Remaining work
+
+- Compare raw, CLAHE, and denoise+CLAHE inputs using fixed train/evaluation
+  splits; no enhancement is currently enabled in the inference path.
+- Evaluate larger or complete hard and hidden splits and investigate the weak
+  knife/lighter results.
+- Production requirements such as authentication, alerting, and a production
+  database are out of scope for the current portfolio prototype.
+- C++/OpenCV acceleration and .NET orchestration remain later-stage options,
+  contingent on profiling and product needs.

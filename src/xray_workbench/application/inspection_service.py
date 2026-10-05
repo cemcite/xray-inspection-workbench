@@ -12,7 +12,7 @@ from xray_workbench.infrastructure.image_storage import (
     StoredImage,
 )
 from xray_workbench.infrastructure.repositories import InspectionRepository
-from xray_workbench.vision.detector import Detector, ImageArray
+from xray_workbench.vision.detector import DetectionResult, Detector, ImageArray
 
 
 class InspectionNotFoundError(LookupError):
@@ -50,6 +50,7 @@ class InspectionService:
     ) -> Inspection:
         inspection = Inspection(image_id=image_id)
         stored_image: StoredImage | None = None
+        result: DetectionResult | None = None
         if image_payload is not None and self._image_store is not None:
             storage_key = self._image_store.save(inspection.id, image_payload, content_type)
             stored_image = StoredImage(
@@ -79,7 +80,7 @@ class InspectionService:
         self._repository.save(inspection)
         if stored_image is not None and self._image_repository is not None:
             self._image_repository.save(stored_image)
-        self._record_inspection_events(inspection, stored_image is not None)
+        self._record_inspection_events(inspection, stored_image is not None, result)
         return inspection
 
     def get(self, inspection_id: UUID) -> Inspection:
@@ -124,7 +125,12 @@ class InspectionService:
         )
         return inspection
 
-    def _record_inspection_events(self, inspection: Inspection, image_stored: bool) -> None:
+    def _record_inspection_events(
+        self,
+        inspection: Inspection,
+        image_stored: bool,
+        result: DetectionResult | None,
+    ) -> None:
         self._append_event(
             AuditEvent(
                 inspection_id=inspection.id,
@@ -148,7 +154,7 @@ class InspectionService:
                     message="AI model unavailable; manual review required",
                 )
             )
-        else:
+        elif result is not None:
             self._append_event(
                 AuditEvent(
                     inspection_id=inspection.id,
@@ -157,6 +163,10 @@ class InspectionService:
                     details={
                         "detection_count": len(inspection.detections),
                         "model_version": inspection.model_version,
+                        "preprocessing_mode": result.preprocessing_mode.value,
+                        "preprocessing_ms": result.preprocessing_ms,
+                        "inference_ms": result.inference_ms,
+                        "postprocessing_ms": result.postprocessing_ms,
                     },
                 )
             )

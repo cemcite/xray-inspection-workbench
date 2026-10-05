@@ -30,6 +30,7 @@ def get_detector() -> Detector:
             model_name=settings.model_name,
             model_version=settings.model_version,
             minimum_confidence=settings.model_min_confidence,
+            preprocessing_mode=settings.model_preprocessing,
         )
     return FakeDetector(
         model_name=settings.model_name,

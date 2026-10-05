@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from xray_workbench.vision.detector import PreprocessingMode
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="XRAY_", env_file=".env", extra="ignore")
@@ -14,6 +16,7 @@ class Settings(BaseSettings):
     model_version: str = "unavailable"
     model_path: str | None = None
     model_min_confidence: float = 0.10
+    model_preprocessing: PreprocessingMode = PreprocessingMode.RAW
 
 
 @lru_cache
