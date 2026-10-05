@@ -1,5 +1,9 @@
 # Model evaluation
 
+The [expanded baseline experiment](expanded-baseline.md) adds 1,500 training
+images to the original 500-image subset, introduces independent 400-image
+validation, and compares both checkpoints on common evaluation splits.
+
 The first baseline must report per-class precision, recall, F1, mAP@50,
 mAP@50:95, and preprocessing/inference/postprocessing latency. Preserve a
 versioned model manifest alongside every result.

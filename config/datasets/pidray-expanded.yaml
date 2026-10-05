@@ -1,0 +1,9 @@
+# Nested 2,000-image train subset; independent 400-image train.json validation.
+path: data/processed/pidray-expanded
+train: images/train
+val: images/val
+names:
+  0: gun
+  1: knife
+  2: scissors
+  3: lighter

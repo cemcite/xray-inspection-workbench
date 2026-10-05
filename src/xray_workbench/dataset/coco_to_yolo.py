@@ -1,3 +1,4 @@
+import hashlib
 import json
 import shutil
 from collections import defaultdict, deque
@@ -46,6 +47,8 @@ def convert_coco_split(
     archive_prefix: str = "",
     balanced: bool = False,
     background_fraction: float = 0.0,
+    include_image_names: Sequence[str] | None = None,
+    exclude_image_names: Sequence[str] = (),
 ) -> ConversionSummary:
     """Convert one COCO detection split to YOLO labels and copied images."""
 
@@ -82,6 +85,14 @@ def convert_coco_split(
         raise ValueError(f"Requested categories are absent from COCO metadata: {missing}")
 
     images = _images(raw.get("images"))
+    allowed_names = set(include_image_names) if include_image_names is not None else None
+    excluded_names = set(exclude_image_names)
+    images = [
+        image
+        for image in images
+        if (allowed_names is None or image.file_name in allowed_names)
+        and image.file_name not in excluded_names
+    ]
     annotations = _annotations(raw.get("annotations"))
     annotations_by_image: dict[int, list[CocoAnnotation]] = defaultdict(list)
     for annotation in annotations:
@@ -116,6 +127,8 @@ def convert_coco_split(
 
     annotation_count = 0
     skipped_count = 0
+    background_count = 0
+    class_counts = dict.fromkeys(class_names, 0)
     archive = ZipFile(archive_path) if archive_path is not None else None
     try:
         for image in selected_images:
@@ -137,10 +150,10 @@ def convert_coco_split(
                     skipped_count += 1
                     continue
                 class_id = category_to_class[annotation.category_id]
-                lines.append(
-                    f"{class_id} " + " ".join(f"{value:.8f}" for value in normalized)
-                )
+                lines.append(f"{class_id} " + " ".join(f"{value:.8f}" for value in normalized))
                 annotation_count += 1
+                class_counts[class_names[class_id]] += 1
+            background_count += not lines
             (label_output / f"{target.stem}.txt").write_text(
                 "\n".join(lines) + ("\n" if lines else ""),
                 encoding="utf-8",
@@ -159,7 +172,20 @@ def convert_coco_split(
     manifest_dir = destination / "manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
     (manifest_dir / f"{split}.json").write_text(
-        json.dumps(asdict(summary), indent=2) + "\n",
+        json.dumps(
+            {
+                **asdict(summary),
+                "source_annotation": str(annotation_path.resolve()),
+                "source_annotation_sha256": hashlib.sha256(
+                    annotation_path.read_bytes()
+                ).hexdigest(),
+                "image_names": [image.file_name for image in selected_images],
+                "background_image_count": background_count,
+                "per_class_annotation_count": class_counts,
+            },
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
     return summary

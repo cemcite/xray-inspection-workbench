@@ -166,6 +166,11 @@ $env:XRAY_MODEL_VERSION="baseline-20e"
 
 ## Next milestone
 
+The [expanded baseline experiment](docs/expanded-baseline.md) prepares 2,000
+training and 400 independent validation images and runs training plus common
+checkpoint evaluation. Its dataset audit and live progress are local artifacts;
+see the experiment document for paths and commands.
+
 Image-level error diagnostics and a local review gallery are available through
 `python training/analyze_errors.py`. See [error analysis](docs/error-analysis.md)
 for the measured misses, false alarms, matching policy, and reproduction command.

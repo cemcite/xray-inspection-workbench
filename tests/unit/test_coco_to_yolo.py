@@ -106,9 +106,7 @@ def test_reserves_requested_fraction_for_backgrounds(tmp_path: Path) -> None:
     for image_id in range(1, 11):
         file_name = f"image-{image_id:02d}.png"
         (images / file_name).write_bytes(b"image-placeholder")
-        image_rows.append(
-            {"id": image_id, "file_name": file_name, "width": 10, "height": 10}
-        )
+        image_rows.append({"id": image_id, "file_name": file_name, "width": 10, "height": 10})
         if image_id <= 8:
             annotation_rows.append(
                 {
@@ -159,13 +157,9 @@ def test_reads_selected_images_directly_from_zip(tmp_path: Path) -> None:
     annotations.write_text(
         json.dumps(
             {
-                "images": [
-                    {"id": 1, "file_name": "sample.png", "width": 20, "height": 10}
-                ],
+                "images": [{"id": 1, "file_name": "sample.png", "width": 20, "height": 10}],
                 "categories": [{"id": 1, "name": "knife"}],
-                "annotations": [
-                    {"id": 1, "image_id": 1, "category_id": 1, "bbox": [2, 1, 4, 2]}
-                ],
+                "annotations": [{"id": 1, "image_id": 1, "category_id": 1, "bbox": [2, 1, 4, 2]}],
             }
         ),
         encoding="utf-8",
@@ -185,3 +179,62 @@ def test_reads_selected_images_directly_from_zip(tmp_path: Path) -> None:
     assert (tmp_path / "output" / "images" / "train" / "sample.png").read_bytes() == (
         b"png-from-archive"
     )
+
+
+def test_filters_unavailable_images_and_excludes_training_images_from_validation(
+    tmp_path: Path,
+) -> None:
+    images = tmp_path / "source"
+    images.mkdir()
+    rows = []
+    for index in range(6):
+        name = f"sample-{index}.png"
+        if index < 5:
+            (images / name).write_bytes(bytes([index]))
+        rows.append({"id": index, "file_name": name, "width": 10, "height": 10})
+    annotations = tmp_path / "annotations.json"
+    annotations.write_text(
+        json.dumps(
+            {
+                "images": rows,
+                "categories": [{"id": 1, "name": "knife"}],
+                "annotations": [
+                    {"id": i, "image_id": i, "category_id": 1, "bbox": [1, 1, 2, 2]}
+                    for i in range(6)
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    available = [f"sample-{i}.png" for i in range(5)]
+    output = tmp_path / "output"
+    train = convert_coco_split(
+        annotations,
+        images,
+        output,
+        split="train",
+        class_names=["knife"],
+        max_images=3,
+        include_image_names=available,
+        balanced=True,
+    )
+    training_names = [path.name for path in (output / "images/train").iterdir()]
+    validation = convert_coco_split(
+        annotations,
+        images,
+        output,
+        split="val",
+        class_names=["knife"],
+        max_images=2,
+        include_image_names=available,
+        exclude_image_names=training_names,
+        balanced=True,
+    )
+    validation_names = {path.name for path in (output / "images/val").iterdir()}
+    assert train.image_count == 3
+    assert validation.image_count == 2
+    assert not set(training_names) & validation_names
+    assert not (output / "images/val/sample-5.png").exists()
+    manifest = json.loads((output / "manifests/val.json").read_text())
+    assert set(manifest["image_names"]) == validation_names
+    assert manifest["per_class_annotation_count"] == {"knife": 2}
