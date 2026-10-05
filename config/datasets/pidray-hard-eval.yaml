@@ -1,0 +1,8 @@
+path: data/processed/pidray-hard-hidden
+train: images/train
+val: images/hard
+names:
+  0: gun
+  1: knife
+  2: scissors
+  3: lighter

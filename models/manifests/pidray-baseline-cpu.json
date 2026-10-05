@@ -36,9 +36,50 @@
       "lighter": 0.707
     }
   },
+  "subsetEvaluations": {
+    "easyValidation": {
+      "images": 160,
+      "backgroundImages": 32,
+      "precision": 0.56851,
+      "recall": 0.38281,
+      "map50": 0.42964,
+      "map50_95": 0.27943
+    },
+    "hard": {
+      "images": 160,
+      "backgroundImages": 32,
+      "instances": 211,
+      "precision": 0.454,
+      "recall": 0.257,
+      "map50": 0.284,
+      "map50_95": 0.163,
+      "perClassMap50": {
+        "gun": 0.52,
+        "knife": 0.0691,
+        "scissors": 0.453,
+        "lighter": 0.0955
+      }
+    },
+    "hidden": {
+      "images": 160,
+      "backgroundImages": 32,
+      "instances": 128,
+      "precision": 0.163,
+      "recall": 0.0778,
+      "map50": 0.0569,
+      "map50_95": 0.0302,
+      "perClassMap50": {
+        "gun": 0.135,
+        "knife": 0.0032,
+        "scissors": 0.0895,
+        "lighter": 0.0000156
+      }
+    }
+  },
   "limitations": [
     "This small-subset baseline is experimental and is not an operational security detector.",
     "Knife recall and mAP are substantially weaker than the other selected classes.",
-    "Hard, hidden, and independent test splits have not yet been evaluated."
+    "Hard and hidden metrics use balanced 160-image subsets, not complete PIDray splits.",
+    "The hidden subset shows severe generalization failure for knife and lighter."
   ]
 }

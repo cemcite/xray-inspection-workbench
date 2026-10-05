@@ -141,7 +141,10 @@ one-epoch metrics are intentionally not suitable for operational use. See
 A second CPU baseline used 500 training images and 160 validation images, with
 20% background examples in each split. Its 20-epoch result reached mAP50
 0.4296 and mAP50-95 0.2794. The class-level results and limitations are recorded
-in `models/manifests/pidray-baseline-cpu.json`. To try it locally, set:
+in `models/manifests/pidray-baseline-cpu.json`. Follow-up 160-image subset
+evaluations reached mAP50 0.284 on hard and 0.0569 on hidden, showing weak
+generalization beyond the easy validation subset. These are sampled-subset
+results, not metrics for the full PIDray splits. To try it locally, set:
 
 ```powershell
 $env:XRAY_MODEL_PATH="training\experiments\pidray-baseline-cpu\weights\best.pt"
