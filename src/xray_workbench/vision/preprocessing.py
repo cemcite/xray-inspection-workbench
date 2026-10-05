@@ -1,5 +1,7 @@
 """Opt-in image preprocessing experiments; raw input remains the default."""
 
+from typing import cast
+
 import cv2
 import numpy as np
 
@@ -20,17 +22,23 @@ def preprocess_image(image: ImageArray, mode: PreprocessingMode) -> ImageArray:
     enhanced = image
     if mode is PreprocessingMode.DENOISE_CLAHE:
         if enhanced.ndim == 2:
-            enhanced = cv2.fastNlMeansDenoising(enhanced)
+            enhanced = cast(ImageArray, cv2.fastNlMeansDenoising(enhanced))
         else:
-            enhanced = cv2.fastNlMeansDenoisingColored(enhanced)
+            enhanced = cast(ImageArray, cv2.fastNlMeansDenoisingColored(enhanced))
     if enhanced.ndim == 2:
         return _apply_clahe(enhanced)
 
-    lab = cv2.cvtColor(enhanced, cv2.COLOR_BGR2LAB)
+    lab = cast(ImageArray, cv2.cvtColor(enhanced, cv2.COLOR_BGR2LAB))
     lightness, a_channel, b_channel = cv2.split(lab)
-    adjusted = cv2.merge((_apply_clahe(lightness), a_channel, b_channel))
-    return cv2.cvtColor(adjusted, cv2.COLOR_LAB2BGR)
+    adjusted = cast(
+        ImageArray,
+        cv2.merge((_apply_clahe(cast(ImageArray, lightness)), a_channel, b_channel)),
+    )
+    return cast(ImageArray, cv2.cvtColor(adjusted, cv2.COLOR_LAB2BGR))
 
 
 def _apply_clahe(channel: ImageArray) -> ImageArray:
-    return cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(channel)
+    return cast(
+        ImageArray,
+        cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(channel),
+    )

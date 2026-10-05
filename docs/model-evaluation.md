@@ -8,6 +8,49 @@ Preprocessing changes are experiments, not defaults. Compare at least raw,
 CLAHE, and denoise+CLAHE pipelines before adopting one. Document false
 positives, false negatives, low-confidence detections, and hidden objects.
 
+Run the fixed-subset comparison (default: local CPU baseline, 320px, hard and
+hidden 160-image subsets):
+
+```powershell
+python training/compare_preprocessing.py
+```
+
+The command writes transformed images, Ultralytics run artifacts, and
+`report.json`/`report.csv` under a new `runs/preprocessing-comparison-*`
+directory. Each mode uses the same source images and copied labels. The report
+separates the extra CLAHE/denoising time (CPU transform only; decode and disk
+I/O excluded) from the validation pipeline timings and metrics. Pass
+`--model`, `--data-root`, `--output-dir`, `--image-size`, or `--device` to
+select local alternatives. Results on these subsets remain diagnostic, not
+full-split benchmarks.
+
+## Preprocessing comparison (2026-10-05)
+
+The same CPU YOLO26n baseline was evaluated on the same 160 hard and 160 hidden
+images at 320px. CLAHE and denoise+CLAHE images were generated from the source
+images without changing labels. Added enhancement time is measured separately
+on CPU and excludes decode/write time. The Ultralytics per-image inference
+timings below are single-pass diagnostics; use repeated, warmed runs before
+making a latency claim.
+
+| Split | Mode | Precision | Recall | mAP50 | mAP50:95 | Enhancement ms/image |
+|---|---|---:|---:|---:|---:|---:|
+| Hard | Raw | 0.4540 | 0.2567 | 0.2842 | 0.1634 | 0.00 |
+| Hard | CLAHE | 0.3876 | 0.2507 | 0.2625 | 0.1530 | 7.81 |
+| Hard | Denoise+CLAHE | 0.3321 | 0.2474 | 0.2460 | 0.1460 | 1,098.98 |
+| Hidden | Raw | 0.1627 | 0.0778 | 0.0569 | 0.0302 | 0.00 |
+| Hidden | CLAHE | 0.0938 | 0.1029 | 0.0728 | 0.0402 | 5.58 |
+| Hidden | Denoise+CLAHE | 0.3156 | 0.1094 | 0.0741 | 0.0390 | 1,174.07 |
+
+Neither enhancement improves the hard subset. The small hidden-subset mAP gain
+comes with lower precision and remains far too weak to support operational
+use; denoising also adds about 1.1 seconds per image on the measured CPU. Keep
+raw as the inference default. These small subsets are diagnostic only and do
+not establish statistical significance or full-PIDray performance. Raw remains
+poor on hidden data, so data/model generalization—not preprocessing—is the
+main unresolved issue. The complete local report (including per-class mAP and
+runtime metadata) is `runs/preprocessing-comparison-20261005T044654Z/report.json`.
+
 ## PIDray baseline subset (2026-10-05)
 
 The YOLO26n baseline was trained for 20 CPU epochs at 320px on 500 balanced

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from xray_workbench.vision.detector import PreprocessingMode
 from xray_workbench.vision.yolo_detector import ModelUnavailableError, YoloDetector
 
 
@@ -49,6 +50,9 @@ def test_maps_ultralytics_center_xywh_to_domain_top_left(tmp_path: Path) -> None
     assert detection.bounding_box.width == pytest.approx(0.20)
     assert detection.bounding_box.height == pytest.approx(0.30)
     assert result.inference_ms == 12.5
+    assert result.preprocessing_mode is PreprocessingMode.RAW
+    assert result.preprocessing_ms >= 0.0
+    assert result.postprocessing_ms >= 0.0
     assert model.arguments["conf"] == 0.10
     assert "device" not in model.arguments
 
@@ -72,3 +76,22 @@ def test_missing_weights_do_not_trigger_loader(tmp_path: Path) -> None:
     assert loader_called is False
     with pytest.raises(ModelUnavailableError, match="do not exist"):
         detector.detect(np.zeros((4, 4, 3), dtype=np.uint8))
+
+
+def test_configured_preprocessing_is_applied_before_prediction(tmp_path: Path) -> None:
+    weights = tmp_path / "model.pt"
+    weights.touch()
+    model = StubModel()
+    detector = YoloDetector(
+        weights,
+        model_name="xray-detector",
+        model_version="0.1.0",
+        preprocessing_mode=PreprocessingMode.CLAHE,
+        model_loader=lambda _: model,
+    )
+
+    result = detector.detect(np.zeros((16, 16, 3), dtype=np.uint8))
+
+    assert result.preprocessing_mode is PreprocessingMode.CLAHE
+    assert result.preprocessing_ms >= 0.0
+    assert model.arguments["source"].shape == (16, 16, 3)
