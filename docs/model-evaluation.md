@@ -30,7 +30,7 @@ The same CPU YOLO26n baseline was evaluated on the same 160 hard and 160 hidden
 images at 320px. CLAHE and denoise+CLAHE images were generated from the source
 images without changing labels. Added enhancement time is measured separately
 on CPU and excludes decode/write time. The Ultralytics per-image inference
-timings below are single-pass diagnostics; use repeated, warmed runs before
+timings in the local report are single-pass diagnostics; use repeated, warmed runs before
 making a latency claim.
 
 | Split | Mode | Precision | Recall | mAP50 | mAP50:95 | Enhancement ms/image |
@@ -42,14 +42,26 @@ making a latency claim.
 | Hidden | CLAHE | 0.0938 | 0.1029 | 0.0728 | 0.0402 | 5.58 |
 | Hidden | Denoise+CLAHE | 0.3156 | 0.1094 | 0.0741 | 0.0390 | 1,174.07 |
 
-Neither enhancement improves the hard subset. The small hidden-subset mAP gain
-comes with lower precision and remains far too weak to support operational
+Neither enhancement improves the hard subset. On hidden, CLAHE improves mAP
+but reduces precision; denoise+CLAHE improves both precision and recall but
+still leaves recall at 0.1094. Both remain far too weak to support operational
 use; denoising also adds about 1.1 seconds per image on the measured CPU. Keep
 raw as the inference default. These small subsets are diagnostic only and do
 not establish statistical significance or full-PIDray performance. Raw remains
 poor on hidden data, so data/model generalization—not preprocessing—is the
 main unresolved issue. The complete local report (including per-class mAP and
 runtime metadata) is `runs/preprocessing-comparison-20261005T044654Z/report.json`.
+
+Metric correction: the original comparison script labelled Ultralytics
+`box.maps` as per-class mAP50, but those values are mAP50:95. The historical
+JSON/CSV column labels have been corrected; aggregate results above are
+unaffected. New comparisons record AP50 and AP50:95 separately using
+`ap_class_index` to map classes, with absent classes marked as unmeasured.
+
+See [fixed-threshold error analysis](error-analysis.md) for image-level
+TP/FP/FN, background false alarms, and the local review gallery. This uses
+confidence 0.10 and IoU 0.50; its micro-averaged scores are distinct from the
+validation scores above.
 
 ## PIDray baseline subset (2026-10-05)
 

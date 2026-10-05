@@ -15,6 +15,7 @@ import cv2
 import yaml
 
 from xray_workbench.vision.detector import ImageArray, PreprocessingMode
+from xray_workbench.vision.error_analysis import per_class_average_precision
 from xray_workbench.vision.preprocessing import preprocess_image
 
 CLASS_NAMES = ("gun", "knife", "scissors", "lighter")
@@ -52,8 +53,7 @@ def main() -> None:
     output_dir = (
         Path(args.output_dir).resolve()
         if args.output_dir
-        else Path("runs")
-        / f"preprocessing-comparison-{datetime.now(UTC):%Y%m%dT%H%M%SZ}"
+        else Path("runs") / f"preprocessing-comparison-{datetime.now(UTC):%Y%m%dT%H%M%SZ}"
     )
     output_dir = output_dir.resolve()
     if output_dir.exists():
@@ -90,10 +90,7 @@ def main() -> None:
                 "recall": float(metrics.box.mr),
                 "map50": float(metrics.box.map50),
                 "map50_95": float(metrics.box.map),
-                "per_class_map50": {
-                    CLASS_NAMES[index]: float(metrics.box.maps[index])
-                    for index in range(len(CLASS_NAMES))
-                },
+                **per_class_average_precision(metrics.box, CLASS_NAMES),
                 "enhancement_ms_per_image_mean": _mean(_transform_times(split, images, mode)),
                 "ultralytics_speed_ms_per_image": {
                     key: float(value) for key, value in metrics.speed.items()
@@ -127,9 +124,7 @@ def main() -> None:
             "Metrics are subset diagnostics, not full PIDray benchmark results.",
         ],
     }
-    (output_dir / "report.json").write_text(
-        json.dumps(report, indent=2), encoding="utf-8"
-    )
+    (output_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     _write_csv(output_dir / "report.csv", records)
     print(f"Saved report: {output_dir / 'report.json'}", flush=True)
 
@@ -206,9 +201,7 @@ def _prepare_variant(
 _TRANSFORM_TIMES: dict[tuple[str, PreprocessingMode], list[float]] = {}
 
 
-def _transform_times(
-    split: str, images: list[Path], mode: PreprocessingMode
-) -> list[float]:
+def _transform_times(split: str, images: list[Path], mode: PreprocessingMode) -> list[float]:
     if mode is PreprocessingMode.RAW:
         return [0.0] * len(images)
     return _TRANSFORM_TIMES[(split, mode)]
@@ -238,6 +231,7 @@ def _write_csv(path: Path, records: list[dict[str, Any]]) -> None:
         "enhancement_ms_per_image_mean",
         "ultralytics_speed_ms_per_image",
         "per_class_map50",
+        "per_class_map50_95",
     )
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns)
@@ -250,6 +244,7 @@ def _write_csv(path: Path, records: list[dict[str, Any]]) -> None:
                         record["ultralytics_speed_ms_per_image"], sort_keys=True
                     ),
                     "per_class_map50": json.dumps(record["per_class_map50"], sort_keys=True),
+                    "per_class_map50_95": json.dumps(record["per_class_map50_95"], sort_keys=True),
                 }
             )
 

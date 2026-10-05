@@ -166,6 +166,10 @@ $env:XRAY_MODEL_VERSION="baseline-20e"
 
 ## Next milestone
 
+Image-level error diagnostics and a local review gallery are available through
+`python training/analyze_errors.py`. See [error analysis](docs/error-analysis.md)
+for the measured misses, false alarms, matching policy, and reproduction command.
+
 Improve generalization against hard and hidden PIDray examples through a
 documented error analysis. Compare raw input with CLAHE and denoise+CLAHE using
 the same evaluation splits and report per-class quality and latency before
